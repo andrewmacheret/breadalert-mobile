@@ -2,124 +2,84 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useState, useCallback } from "react";
 import { StyleSheet, Text, View, FlatList, Pressable } from "react-native";
 
+import ThreadList from "./ThreadList";
+import GroupList from "./GroupList";
+import MessageList from "./MessageList";
+
 const API_BASE_URL =
   "https://223nwk5397.execute-api.us-west-1.amazonaws.com/dev/api";
 
-const getUsers = async () => {
-  const url = `${API_BASE_URL}/users`;
-  const response = await fetch(url);
-  console.log("@@@@", response);
-  const json = await response.json();
-  console.log("@@@@", json);
-  return json.users;
+const getMemberships = (userId) => {
+  return getFromApi(
+    `${API_BASE_URL}/users/${userId}/memberships`,
+    "memberships"
+  );
 };
 
-const getMemberships = async () => {
-  const url = `${API_BASE_URL}/users/123/memberships`;
-  const response = await fetch(url);
-  console.log("@@@@", response);
-  const json = await response.json();
-  console.log("@@@@", json);
-  return json.memberships;
+const getThreads = (groupId) => {
+  return getFromApi(`${API_BASE_URL}/groups/${groupId}/threads`, "threads");
 };
 
-const getThreads = async (groupId) => {
-  const url = `${API_BASE_URL}/groups/${groupId}/threads`;
-  const response = await fetch(url);
-  console.log("@@@@", response);
-  const json = await response.json();
-  console.log("@@@@", json);
-  return json.threads;
+const getMessages = (threadId) => {
+  return getFromApi(`${API_BASE_URL}/threads/${threadId}/messages`, "messages");
 };
 
-const GroupItem = ({ title, groupId, changeGroup }) => {
-  
-  const log = useCallback(() => {
-    changeGroup(groupId);
-  }, [groupId]);
-
-  return (
-    <Pressable onPress={log}>
-      <View style={styles.item}>
-        <Text style={styles.title}>{title}</Text>
-      </View>
-    </Pressable>
-    );
-}
-
-const ThreadItem = ({ title, threadId, changeThread }) => {
-  
-  const log = useCallback(() => {
-    changeThread(threadId);
-  }, [threadId]);
-
-  return (
-    <Pressable onPress={log}>
-      <View style={styles.item}>
-        <Text style={styles.title}>{title}</Text>
-      </View>
-    </Pressable>
-    );
-}
+const getFromApi = async (url, field) => {
+  const response = await fetch(url);
+  const json = await response.json();
+  return json[field];
+};
 
 export default function App() {
-  const [users, setUsers] = useState(null);
+  const [memberships, setMemberships] = useState(null);
+  const [threads, setThreads] = useState(null);
+  const [messages, setMessages] = useState(null);
   const [groupId, setGroupId] = useState(null);
   const [threadId, setThreadId] = useState(null);
-  console.log('Hello ', groupId);
 
-  // move???
+  console.log("@@@@ App rendered!", {
+    memberships,
+    threads,
+    groupId,
+    threadId,
+  });
+
+  const userId = 123;
+
   useEffect(() => {
-    getMemberships().then(setUsers);
-  }, [setUsers]);
+    getMemberships(userId).then(setMemberships);
+  }, []);
 
-  if (users === null) {
+  useEffect(() => {
+    if (groupId !== null) {
+      getThreads(groupId).then(setThreads);
+    }
+  }, [groupId]);
+
+  useEffect(() => {
+    if (threadId !== null) {
+      getMessages(threadId).then(setMessages);
+    }
+  }, [threadId]);
+
+  if (memberships === null) {
     return (
       <View style={styles.container}>
         <Text>Loading...</Text>
         <StatusBar style="auto" />
       </View>
     );
-  } else if(groupId === null) {
-    return (<GroupList users={users} changeGroup={setGroupId}/>);
   }
 
-  // then what?
-  useEffect(() => {
-    getThreads(groupId).then(setUsers);
-  }, [setUsers]);
+  if (groupId === null) {
+    return <GroupList memberships={memberships} changeGroup={setGroupId} />;
+  }
 
-  return (<ThreadList users={users} changeThread={setThreadId}/>);
-}
+  if (threadId === null) {
+    return <ThreadList threads={threads} changeThread={setThreadId} />;
+  }
 
-// TODO: rename users
-function ThreadList({users, changeThread}) {
-
-  return (
-    <View style={styles.container}>
-      <FlatList
-        data={users}
-        renderItem={({ item }) => <ThreadItem title={item.title} threadId={item.thread_id} changeThread={changeThread}/>}
-        keyExtractor={(item) => item.thread_id}
-      />
-      <StatusBar style="auto" />
-    </View>
-  );
-}
-
-// TODO: rename users
-function GroupList({users, changeGroup}) {
-
-  return (
-    <View style={styles.container}>
-      <FlatList
-        data={users}
-        renderItem={({ item }) => <GroupItem title={item.group_name} groupId={item.group_id} changeGroup={changeGroup}/>}
-        keyExtractor={(item) => item.membership_id}
-      />
-      <StatusBar style="auto" />
-    </View>
-  );
+  return <MessageList messages={messages} />;
 }
 
 const styles = StyleSheet.create({
